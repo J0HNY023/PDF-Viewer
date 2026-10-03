@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive PDF Editor</title>
+    <!-- PDF.js for rendering the visual preview -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- pdf-lib for modifying the actual PDF data -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { color: #2c3e50; margin-bottom: 10px; }
+        .disclaimer {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            max-width: 800px;
+            text-align: center;
+            font-size: 14px;
+            border: 1px solid #ffeeba;
+        }
+
+        .toolbar {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button, label.btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; }
+        
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-success:hover { background: #27ae60; }
+
+        .btn-tool { background: #ecf0f1; color: #2c3e50; border: 2px solid transparent; }
+        .btn-tool.active { border-color: #3498db; background: #ebf5fb; color: #3498db; }
+        .btn-tool:hover { background: #e0e6e8; }
+
+        input[type="file"] { display: none; }
+
+        /* Canvas Container Styles */
+        #canvas-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        #canvas-wrapper {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Overlay canvas for the whiteout marquee */
+        #overlay-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Floating text input */
+        #text-input-container {
+            position: absolute;
+            z-index: 100;
+            display: none;
+        }
+
+        #floating-text-input {
+            font-size: 14px;
+            padding: 4px 8px;
+            border: 2px solid #3498db;
+            border-radius: 4px;
+            outline: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            min-width: 150px;
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .page-info {
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Interactive PDF Editor</h1>
+    <div class="disclaimer">
+        <strong>How to use:</strong><br>
+        1. <strong>Add Text:</strong> Click the tool, then click anywhere on the PDF to type.<br>
+        2. <strong>Whiteout:</strong> Click the tool, then click and drag to draw a red box over text you want to hide.
+    </div>
+
+    <div class="toolbar">
+        <label for="pdf-upload" class="btn btn-primary">1. Upload PDF</label>
+        <input type="file" id="pdf-upload" accept="application/pdf">
+
+        <button id="btn-text" class="btn-tool active" title="Click on the PDF to add text">✏️ Add Text</button>
+        <button id="btn-whiteout" class="btn-tool" title="Click and drag to whiteout existing text">🧽 Whiteout</button>
+        
+        <button id="btn-prev" class="btn-tool">◀ Prev</button>
+        <span class="page-info" id="page-info">Page 0 / 0</span>
+        <button id="btn-next" class="btn-tool">Next ▶</button>
+
+        <button id="btn-download" class="btn btn-success" disabled>💾 Download PDF</button>
+    </div>
+
+    <div id="canvas-container">
+        <div id="canvas-wrapper">
+            <!-- Main PDF rendering canvas -->
+            <canvas id="pdf-canvas"></canvas>
+            <!-- Transparent overlay for the whiteout marquee -->
+            <canvas id="overlay-canvas"></canvas>
+            <!-- Floating input for adding text -->
+            <div id="text-input-container">
+                <input type="text" id="floating-text-input" placeholder="Type here & press Enter">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // State variables
+        let pdfLibDoc = null; 
+        let pdfJsDoc = null;  
+        let currentPage = 1;
+        let scale = 1.5;
+        let currentMode = 'text'; 
+        
+        // Whiteout drag state
+        let isDrawing = false;
+        let startX = 0, startY = 0;
+
+        // DOM Elements
+        const fileInput = document.getElementById('pdf-upload');
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+        const overlayCanvas = document.getElementById('overlay-canvas');
+        const overlayCtx = overlayCanvas.getContext('2d');
+        const textContainer = document.getElementById('text-input-container');
+        const textInput = document.getElementById('floating-text-input');
+        
+        const pageInfo = document.getElementById('page-info');
+        const btnDownload = document.getElementById('btn-download');
+        const btnText = document.getElementById('btn-text');
+        const btnWhiteout = document.getElementById('btn-whiteout');
+
+        // Tool Selection
+        btnText.onclick = () => setMode('text');
+        btnWhiteout.onclick = () => setMode('whiteout');
+
+        function setMode(mode) {
+            currentMode = mode;
+            btnText.classList.toggle('active', mode === 'text');
+            btnWhiteout.classList.toggle('active', mode === 'whiteout');
+            canvas.style.cursor = mode === 'whiteout' ? 'crosshair' : 'text';
+            textContainer.style.display = 'none'; // Hide input when switching tools
+        }
+
+        // File Upload Handler
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const arrayBuffer = await file.arrayBuffer();
+            pdfLibDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+            pdfJsDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            
+            currentPage = 1;
+            btnDownload.disabled = false;
+            await renderPage();
+        });
+
+        // Page Navigation
+        document.getElementById('btn-prev').onclick = async () => {
+            if (currentPage > 1) { currentPage--; await renderPage(); }
+        };
+        document.getElementById('btn-next').onclick = async () => {
+            if (pdfJsDoc && currentPage < pdfJsDoc.numPages) { currentPage++; await renderPage(); }
+        };
+
+        // Render Page
+        async function renderPage() {
+            if (!pdfJsDoc) return;
+            
+            textContainer.style.display = 'none'; // Hide floating input on page change
+            
+            const page = await pdfJsDoc.getPage(currentPage);
+            const viewport = page.getViewport({ scale });
+            
+            // Set internal dimensions for both canvases
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            overlayCanvas.height = viewport.height;
+            overlayCanvas.width = viewport.width;
+            
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            pageInfo.textContent = `Page ${currentPage} / ${pdfJsDoc.numPages}`;
+        }
+
+        // Helper to get exact internal canvas coordinates from mouse event
+        function getCanvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY,
+                cssX: e.clientX - rect.left,
+                cssY: e.clientY - rect.top
+            };
+        }
+
+        // Mouse Events for Canvas Interaction
+        canvas.addEventListener('mousedown', (e) => {
+            if (!pdfJsDoc) return;
+            const coords = getCanvasCoords(e);
+            startX = coords.x;
+            startY = coords.y;
+
+            if (currentMode === 'whiteout') {
+                isDrawing = true;
+            } else if (currentMode === 'text') {
+                showFloatingInput(coords.cssX, coords.cssY);
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDrawing || currentMode !== 'whiteout') return;
+            const coords = getCanvasCoords(e);
+
+            // Clear previous marquee
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            
+            // Draw new marquee
+            overlayCtx.save();
+            overlayCtx.fillStyle = 'rgba(231, 76, 60, 0.3)'; // Semi-transparent red
+            overlayCtx.strokeStyle = 'rgba(231, 76, 60, 0.8)';
+            overlayCtx.lineWidth = 2;
+            
+            const x = Math.min(startX, coords.x);
+            const y = Math.min(startY, coords.y);
+            const w = Math.abs(coords.x - startX);
+            const h = Math.abs(coords.y - startY);
+            
+            overlayCtx.fillRect(x, y, w, h);
+            overlayCtx.strokeRect(x, y, w, h);
+            overlayCtx.restore();
+        });
+
+        document.addEventListener('mouseup', async (e) => {
+            if (!isDrawing || currentMode !== 'whiteout') return;
+            isDrawing = false;
+            
+            const coords = getCanvasCoords(e);
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height); // Clear marquee
+            
+            await handleWhiteout(startX, startY, coords.x, coords.y);
+        });
+
+        // Hide floating input if window is resized
+        window.addEventListener('resize', () => {
+            textContainer.style.display = 'none';
+        });
+
+        // --- ACTION HANDLERS ---
+
+        function showFloatingInput(cssX, cssY) {
+            textContainer.style.display = 'block';
+            
+            // Position input, ensuring it doesn't overflow the bottom
+            if (cssY + 40 > canvas.getBoundingClientRect().height) {
+                textContainer.style.top = (cssY - 40) + 'px';
+            } else {
+                textContainer.style.top = cssY + 'px';
+            }
+            textContainer.style.left = cssX + 'px';
+            
+            textInput.value = '';
+            textInput.focus();
+        }
+
+        // Commit text when Enter is pressed or input loses focus
+        textInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') commitText();
+            if (e.key === 'Escape') textContainer.style.display = 'none';
+        });
+        
+        textInput.addEventListener('blur', () => {
+            if (textInput.value.trim() !== '') commitText();
+            textContainer.style.display = 'none';
+        });
+
+        async function commitText() {
+            const text = textInput.value;
+            if (!text) return;
+            
+            const pdfPage = pdfLibDoc.getPages()[currentPage - 1];
+            const { height: pdfHeight } = pdfPage.getSize();
+            
+            // Get the CSS position of the input to convert to canvas coords
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const canvasX = parseFloat(textContainer.style.left) * scaleX;
+            const canvasY = parseFloat(textContainer.style.top) * scaleY;
+            
+            // Convert to PDF coordinates (Bottom-Left origin)
+            const pdfX = canvasX / scale;
+            const pdfY = pdfHeight - (canvasY / scale);
+            
+            pdfPage.drawText(text, {
+                x: pdfX,
+                y: pdfY,
+                size: 14,
+                color: PDFLib.rgb(0, 0, 0),
+            });
+            
+            await renderPage();
+        }
+
+        async function handleWhiteout(x1, y1, x2, y2) {
+            const pdfPage = pdfLibDoc.getPages()[currentPage - 1];
+            const { height: pdfHeight } = pdfPage.getSize();
+
+            // Convert internal canvas coordinates to PDF coordinates
+            const pdfX1 = Math.min(x1, x2) / scale;
+            const pdfX2 = Math.max(x1, x2) / scale;
+            const pdfY1 = pdfHeight - (Math.max(y1, y2) / scale); 
+            const pdfY2 = pdfHeight - (Math.min(y1, y2) / scale); 
+
+            const width = pdfX2 - pdfX1;
+            const height = pdfY2 - pdfY1;
+
+            if (width > 2 && height > 2) {
+                pdfPage.drawRectangle({
+                    x: pdfX1,
+                    y: pdfY1,
+                    width: width,
+                    height: height,
+                    color: PDFLib.rgb(1, 1, 1), // White
+                });
+                await renderPage();
+            }
+        }
+
+        // Download Edited PDF
+        btnDownload.addEventListener('click', async () => {
+            if (!pdfLibDoc) return;
+            const pdfBytes = await pdfLibDoc.save();
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'edited_document.pdf';
+            link.click();
+        });
+    </script>
+</body>
+</html>
