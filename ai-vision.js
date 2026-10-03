@@ -4,7 +4,7 @@
 // Model weights are downloaded once and cached by the browser Cache API, so
 // subsequent loads are instant.
 // ============================================================================
-import { AutoProcessor, AutoModelForImageTextToText }
+import { AutoProcessor, AutoModelForImageTextToText, RawImage }
     from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.0';
 
 const MODEL_ID = 'HuggingFaceTB/SmolVLM-256M-Instruct'; // ~600 MB; SmolVLM2-2.2B if you want more accuracy
@@ -271,6 +271,11 @@ async function runExtraction() {
         setStatus('Rendering page to high-res image…');
         const pageCanvas = await renderPageToCanvas();
 
+        // IMPORTANT: transformers.js image processors require a RawImage object
+        // (with a `.size` property). Passing a raw <canvas> causes the runtime
+        // error "can't access property Symbol.iterator, e.size is undefined".
+        const pageImage = await RawImage.fromCanvas(pageCanvas);
+
         setStatus('Loading model (first run downloads it; later runs are instant)…');
         const [processor, model] = await Promise.all([getProcessor(), getModel()]);
 
@@ -283,9 +288,18 @@ async function runExtraction() {
         ];
 
         const text = processor.apply_chat_template(messages, { add_generation_prompt: true });
-        // Pass the canvas as an HTMLImageElement-like image source (transformers.js
-        // accepts canvases/images directly via the image processor).
-        const inputs = await processor(text, pageCanvas);
+        // Pass the RawImage (not the canvas) — this produces pixel_values,
+        // pixel_attention_mask and input_token_type in addition to input_ids.
+        const inputs = await processor(text, pageImage);
+
+        // Drop keys the model's session doesn't accept (defensive; e.g. older
+        // ONNX exports without input_token_type).
+        const allowed = new Set(model.input_names ?? []);
+        if (allowed.size > 0) {
+            for (const key of Object.keys(inputs)) {
+                if (!allowed.has(key)) delete inputs[key];
+            }
+        }
 
         const generated = await model.generate({
             ...inputs,
