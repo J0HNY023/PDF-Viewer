@@ -4,195 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive PDF Editor</title>
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #eef2f5;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        h1 { color: #2c3e50; margin-bottom: 10px; }
-
-        .disclaimer {
-            background: #fff3cd;
-            color: #856404;
-            padding: 10px 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            max-width: 850px;
-            text-align: center;
-            font-size: 13px;
-            border: 1px solid #ffeeba;
-        }
-
-        .toolbar {
-            background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 900px;
-        }
-
-        button, label.btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-
-        .btn-primary { background: #3498db; color: white; }
-        .btn-primary:hover { background: #2980b9; }
-        .btn-success { background: #2ecc71; color: white; }
-        .btn-success:hover { background: #27ae60; }
-
-        .btn-tool {
-            background: #ecf0f1;
-            color: #2c3e50;
-            border: 2px solid transparent;
-        }
-        .btn-tool.active {
-            border-color: #3498db;
-            background: #ebf5fb;
-            color: #2980b9;
-        }
-        .btn-tool:hover { background: #dfe6e9; }
-
-        input[type="file"] { display: none; }
-
-        .separator {
-            width: 1px;
-            height: 30px;
-            background: #ddd;
-            margin: 0 5px;
-        }
-
-        /* Text tool options bar */
-        #text-options {
-            display: none;
-            background: #ebf5fb;
-            border: 2px solid #3498db;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 900px;
-            width: 100%;
-            animation: fadeIn 0.2s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        #text-options.visible {
-            display: flex;
-        }
-
-        #text-options label {
-            font-size: 13px;
-            font-weight: bold;
-            color: #2c3e50;
-        }
-
-        #toolbar-text-input {
-            padding: 8px 12px;
-            border: 2px solid #3498db;
-            border-radius: 5px;
-            font-size: 15px;
-            min-width: 250px;
-            outline: none;
-        }
-
-        #toolbar-text-input:focus {
-            border-color: #2980b9;
-            box-shadow: 0 0 5px rgba(52,152,219,0.4);
-        }
-
-        #font-size-select {
-            padding: 8px;
-            border: 1px solid #bdc3c7;
-            border-radius: 5px;
-            font-size: 13px;
-        }
-
-        #text-color {
-            width: 36px;
-            height: 36px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            padding: 0;
-        }
-
-        .hint {
-            font-size: 12px;
-            color: #7f8c8d;
-            font-style: italic;
-        }
-
-        /* Canvas area */
-        #canvas-container {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-
-        #canvas-wrapper {
-            position: relative;
-            display: inline-block;
-            max-width: 100%;
-        }
-
-        canvas {
-            display: block;
-            max-width: 100%;
-            height: auto;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-
-        #overlay-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-            max-width: 100%;
-            height: auto;
-        }
-
-        .page-info {
-            font-weight: bold;
-            color: #555;
-            font-size: 13px;
-        }
-
-        /* Placement marker animation */
-        @keyframes placeFlash {
-            0% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0; transform: scale(2); }
-        }
-    </style>
 </head>
 <body>
 
@@ -200,7 +14,8 @@
     <div class="disclaimer">
         <strong>How to use:</strong><br>
         ✏️ <strong>Add Text:</strong> Type your text in the blue bar, then click on the PDF to place it.<br>
-        🧽 <strong>Whiteout:</strong> Click &amp; drag on the PDF to draw a box over text you want to erase.
+        🧽 <strong>Whiteout:</strong> Click &amp; drag on the PDF to draw a box over text you want to erase.<br>
+        🤖 <strong>AI Vision:</strong> Extract text &amp; tables from the current page using SmolVLM — runs 100% locally in your browser (WebGPU).
     </div>
 
     <div class="toolbar">
@@ -211,6 +26,7 @@
 
         <button id="btn-text" class="btn-tool active">✏️ Add Text</button>
         <button id="btn-whiteout" class="btn-tool">🧽 Whiteout</button>
+        <button id="btn-ai-vision" class="btn-tool">🤖 AI Vision</button>
 
         <div class="separator"></div>
 
@@ -250,251 +66,36 @@
         </div>
     </div>
 
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    <!-- AI Vision panel (shown when AI Vision mode is active) -->
+    <div id="ai-panel">
+        <div class="ai-controls">
+            <label for="ai-prompt">Prompt:</label>
+            <input type="text" id="ai-prompt" value="Extract all text from this document. Represent any tables as Markdown tables (| col | col |). Output plain markdown, no commentary.">
+            <button id="btn-ai-run" class="btn btn-primary">🤖 Extract with SmolVLM</button>
+            <span id="ai-device-badge" class="ai-badge">Device: detecting…</span>
+        </div>
 
-        // --- STATE ---
-        let pdfLibDoc = null;
-        let pdfJsDoc = null;
-        let currentPage = 1;
-        let scale = 1.5;
-        let currentMode = 'text';
+        <div id="ai-progress-wrap">
+            <div id="ai-progress-label">Downloading SmolVLM (~600 MB – 2 GB, cached after first use)…</div>
+            <div class="ai-progress-track"><div id="ai-progress-bar"></div></div>
+            <div id="ai-progress-detail">0%</div>
+        </div>
 
-        let isDrawing = false;
-        let startX = 0, startY = 0;
+        <div id="ai-status" class="ai-status"></div>
 
-        // --- DOM ---
-        const fileInput = document.getElementById('pdf-upload');
-        const canvas = document.getElementById('pdf-canvas');
-        const ctx = canvas.getContext('2d');
-        const overlayCanvas = document.getElementById('overlay-canvas');
-        const overlayCtx = overlayCanvas.getContext('2d');
-        const pageInfo = document.getElementById('page-info');
-        const btnDownload = document.getElementById('btn-download');
-        const btnText = document.getElementById('btn-text');
-        const btnWhiteout = document.getElementById('btn-whiteout');
-        const textOptions = document.getElementById('text-options');
-        const textInput = document.getElementById('toolbar-text-input');
-        const fontSizeSelect = document.getElementById('font-size-select');
-        const textColorInput = document.getElementById('text-color');
+        <div class="ai-output-grid">
+            <div class="ai-output-col">
+                <h3>📝 Model output (Markdown)</h3>
+                <pre id="ai-raw-output">Run an extraction to see the raw markdown here.</pre>
+            </div>
+            <div class="ai-output-col">
+                <h3>✨ Rendered result</h3>
+                <div id="ai-rendered-output"><em>Tables will be rendered here as beautiful HTML.</em></div>
+            </div>
+        </div>
+    </div>
 
-        // --- TOOL SWITCHING ---
-        btnText.onclick = () => setMode('text');
-        btnWhiteout.onclick = () => setMode('whiteout');
-
-        function setMode(mode) {
-            currentMode = mode;
-            btnText.classList.toggle('active', mode === 'text');
-            btnWhiteout.classList.toggle('active', mode === 'whiteout');
-            textOptions.classList.toggle('visible', mode === 'text');
-            canvas.style.cursor = mode === 'whiteout' ? 'crosshair' : 'default';
-        }
-
-        // --- FILE UPLOAD ---
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const arrayBuffer = await file.arrayBuffer();
-            pdfLibDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-            currentPage = 1;
-            btnDownload.disabled = false;
-            await reloadAndRender();
-        });
-
-        // --- PAGE NAVIGATION ---
-        document.getElementById('btn-prev').onclick = async () => {
-            if (currentPage > 1) { currentPage--; await reloadAndRender(); }
-        };
-        document.getElementById('btn-next').onclick = async () => {
-            if (pdfJsDoc && currentPage < pdfJsDoc.numPages) { currentPage++; await reloadAndRender(); }
-        };
-
-        // --- RENDER ---
-        async function reloadAndRender() {
-            if (!pdfLibDoc) return;
-
-            const editedBytes = await pdfLibDoc.save();
-            pdfJsDoc = await pdfjsLib.getDocument({ data: editedBytes }).promise;
-
-            const page = await pdfJsDoc.getPage(currentPage);
-            const viewport = page.getViewport({ scale });
-
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            overlayCanvas.height = viewport.height;
-            overlayCanvas.width = viewport.width;
-
-            await page.render({ canvasContext: ctx, viewport }).promise;
-            pageInfo.textContent = `Page ${currentPage} / ${pdfJsDoc.numPages}`;
-        }
-
-        // --- COORDINATE HELPER ---
-        function getCanvasCoords(e) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            return {
-                x: (e.clientX - rect.left) * scaleX,
-                y: (e.clientY - rect.top) * scaleY
-            };
-        }
-
-        // --- MOUSE EVENTS ---
-        canvas.addEventListener('mousedown', (e) => {
-            if (!pdfJsDoc) return;
-            const coords = getCanvasCoords(e);
-
-            if (currentMode === 'whiteout') {
-                isDrawing = true;
-                startX = coords.x;
-                startY = coords.y;
-            } else if (currentMode === 'text') {
-                // Place text immediately on click
-                placeText(coords.x, coords.y);
-            }
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isDrawing || currentMode !== 'whiteout') return;
-            const coords = getCanvasCoords(e);
-
-            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-            overlayCtx.save();
-            overlayCtx.fillStyle = 'rgba(231, 76, 60, 0.25)';
-            overlayCtx.strokeStyle = 'rgba(231, 76, 60, 0.8)';
-            overlayCtx.lineWidth = 2;
-            overlayCtx.setLineDash([6, 3]);
-
-            const x = Math.min(startX, coords.x);
-            const y = Math.min(startY, coords.y);
-            const w = Math.abs(coords.x - startX);
-            const h = Math.abs(coords.y - startY);
-
-            overlayCtx.fillRect(x, y, w, h);
-            overlayCtx.strokeRect(x, y, w, h);
-            overlayCtx.restore();
-        });
-
-        document.addEventListener('mouseup', async (e) => {
-            if (!isDrawing || currentMode !== 'whiteout') return;
-            isDrawing = false;
-
-            const coords = getCanvasCoords(e);
-            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-            await handleWhiteout(startX, startY, coords.x, coords.y);
-        });
-
-        // --- TEXT PLACEMENT ---
-        async function placeText(canvasX, canvasY) {
-            const text = textInput.value.trim();
-            if (!text) {
-                // Flash the input to remind user to type first
-                textInput.style.borderColor = '#e74c3c';
-                textInput.style.background = '#ffeaea';
-                textInput.placeholder = '⚠️ Type something first!';
-                setTimeout(() => {
-                    textInput.style.borderColor = '#3498db';
-                    textInput.style.background = '#fff';
-                    textInput.placeholder = 'Type your text here...';
-                }, 1500);
-                textInput.focus();
-                return;
-            }
-
-            const fontSize = parseInt(fontSizeSelect.value);
-            const colorHex = textColorInput.value;
-
-            // Convert hex color to RGB (0-1 range for pdf-lib)
-            const r = parseInt(colorHex.slice(1, 3), 16) / 255;
-            const g = parseInt(colorHex.slice(3, 5), 16) / 255;
-            const b = parseInt(colorHex.slice(5, 7), 16) / 255;
-
-            const pdfPage = pdfLibDoc.getPages()[currentPage - 1];
-            const { height: pdfHeight } = pdfPage.getSize();
-
-            // Convert canvas coords to PDF coords
-            const pdfX = canvasX / scale;
-            const pdfY = pdfHeight - (canvasY / scale);
-
-            // Draw text onto the PDF
-            pdfPage.drawText(text, {
-                x: pdfX,
-                y: pdfY,
-                size: fontSize,
-                color: PDFLib.rgb(r, g, b),
-            });
-
-            // Show a brief placement marker on the overlay
-            showPlacementMarker(canvasX, canvasY);
-
-            // Re-render to show the text on top
-            await reloadAndRender();
-        }
-
-        function showPlacementMarker(x, y) {
-            overlayCtx.save();
-            overlayCtx.beginPath();
-            overlayCtx.arc(x, y, 8, 0, Math.PI * 2);
-            overlayCtx.fillStyle = 'rgba(46, 204, 113, 0.6)';
-            overlayCtx.fill();
-            overlayCtx.strokeStyle = '#27ae60';
-            overlayCtx.lineWidth = 2;
-            overlayCtx.stroke();
-
-            // Crosshair
-            overlayCtx.beginPath();
-            overlayCtx.moveTo(x - 12, y);
-            overlayCtx.lineTo(x + 12, y);
-            overlayCtx.moveTo(x, y - 12);
-            overlayCtx.lineTo(x, y + 12);
-            overlayCtx.strokeStyle = '#27ae60';
-            overlayCtx.lineWidth = 1;
-            overlayCtx.stroke();
-            overlayCtx.restore();
-
-            // Fade out after 600ms
-            setTimeout(() => {
-                overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-            }, 600);
-        }
-
-        // --- WHITEOUT ---
-        async function handleWhiteout(x1, y1, x2, y2) {
-            const pdfPage = pdfLibDoc.getPages()[currentPage - 1];
-            const { height: pdfHeight } = pdfPage.getSize();
-
-            const pdfX1 = Math.min(x1, x2) / scale;
-            const pdfX2 = Math.max(x1, x2) / scale;
-            const pdfY1 = pdfHeight - (Math.max(y1, y2) / scale);
-            const pdfY2 = pdfHeight - (Math.min(y1, y2) / scale);
-
-            const width = pdfX2 - pdfX1;
-            const height = pdfY2 - pdfY1;
-
-            if (width > 2 && height > 2) {
-                pdfPage.drawRectangle({
-                    x: pdfX1,
-                    y: pdfY1,
-                    width: width,
-                    height: height,
-                    color: PDFLib.rgb(1, 1, 1),
-                });
-                await reloadAndRender();
-            }
-        }
-
-        // --- DOWNLOAD ---
-        btnDownload.addEventListener('click', async () => {
-            if (!pdfLibDoc) return;
-            const pdfBytes = await pdfLibDoc.save();
-            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'edited_document.pdf';
-            link.click();
-        });
-    </script>
+    <script src="script.js"></script>
+    <script type="module" src="ai-vision.js"></script>
 </body>
 </html>
