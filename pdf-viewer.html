@@ -14,7 +14,8 @@
     <div class="disclaimer">
         <strong>How to use:</strong><br>
         ✏️ <strong>Add Text:</strong> Type your text in the blue bar, then click on the PDF to place it.<br>
-        🧽 <strong>Whiteout:</strong> Click &amp; drag on the PDF to draw a box over text you want to erase.
+        🧽 <strong>Whiteout:</strong> Click &amp; drag on the PDF to draw a box over text you want to erase.<br>
+        🤖 <strong>AI Vision:</strong> Extract text &amp; tables from the current page using SmolVLM — runs 100% locally in your browser (WebGPU).
     </div>
 
     <div class="toolbar">
@@ -25,6 +26,7 @@
 
         <button id="btn-text" class="btn-tool active">✏️ Add Text</button>
         <button id="btn-whiteout" class="btn-tool">🧽 Whiteout</button>
+        <button id="btn-ai-vision" class="btn-tool">🤖 AI Vision</button>
 
         <div class="separator"></div>
 
@@ -64,6 +66,36 @@
         </div>
     </div>
 
+    <!-- AI Vision panel (shown when AI Vision mode is active) -->
+    <div id="ai-panel">
+        <div class="ai-controls">
+            <label for="ai-prompt">Prompt:</label>
+            <input type="text" id="ai-prompt" value="Extract all text from this document. Represent any tables as Markdown tables (| col | col |). Output plain markdown, no commentary.">
+            <button id="btn-ai-run" class="btn btn-primary">🤖 Extract with SmolVLM</button>
+            <span id="ai-device-badge" class="ai-badge">Device: detecting…</span>
+        </div>
+
+        <div id="ai-progress-wrap">
+            <div id="ai-progress-label">Downloading SmolVLM (~600 MB – 2 GB, cached after first use)…</div>
+            <div class="ai-progress-track"><div id="ai-progress-bar"></div></div>
+            <div id="ai-progress-detail">0%</div>
+        </div>
+
+        <div id="ai-status" class="ai-status"></div>
+
+        <div class="ai-output-grid">
+            <div class="ai-output-col">
+                <h3>📝 Model output (Markdown)</h3>
+                <pre id="ai-raw-output">Run an extraction to see the raw markdown here.</pre>
+            </div>
+            <div class="ai-output-col">
+                <h3>✨ Rendered result</h3>
+                <div id="ai-rendered-output"><em>Tables will be rendered here as beautiful HTML.</em></div>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
+    <script type="module" src="ai-vision.js"></script>
 </body>
 </html>

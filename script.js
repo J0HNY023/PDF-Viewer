@@ -7,6 +7,13 @@ let currentPage = 1;
 let scale = 1.5;
 let currentMode = 'text';
 
+// Shared hooks used by ai-vision.js (module) to access the live document/page.
+window.__pdfEditor = {
+    getDoc: () => pdfJsDoc,
+    getPage: () => currentPage,
+    getScale: () => scale,
+};
+
 let isDrawing = false;
 let startX = 0, startY = 0;
 
@@ -24,16 +31,21 @@ const textOptions = document.getElementById('text-options');
 const textInput = document.getElementById('toolbar-text-input');
 const fontSizeSelect = document.getElementById('font-size-select');
 const textColorInput = document.getElementById('text-color');
+const btnAiVision = document.getElementById('btn-ai-vision');
+const aiPanel = document.getElementById('ai-panel');
 
 // --- TOOL SWITCHING ---
 btnText.onclick = () => setMode('text');
 btnWhiteout.onclick = () => setMode('whiteout');
+if (btnAiVision) btnAiVision.onclick = () => setMode('ai');
 
 function setMode(mode) {
     currentMode = mode;
     btnText.classList.toggle('active', mode === 'text');
     btnWhiteout.classList.toggle('active', mode === 'whiteout');
+    if (btnAiVision) btnAiVision.classList.toggle('active', mode === 'ai');
     textOptions.classList.toggle('visible', mode === 'text');
+    if (aiPanel) aiPanel.classList.toggle('visible', mode === 'ai');
     canvas.style.cursor = mode === 'whiteout' ? 'crosshair' : 'default';
 }
 
